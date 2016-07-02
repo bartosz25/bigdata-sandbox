@@ -1,0 +1,7 @@
+{"namespace": "com.waitingforcode.model", "type": "record", "name": "Club",
+    "fields": [
+        {"name": "full_name", "type": "string", "aliases": ["fullName"]},
+        {"name": "foundation_year", "type": "int", "aliases": ["foundationYear"]},
+        {"name": "disappearance_year", "type": ["null", "int"], "aliases": ["disappearanceYear"]}
+    ]
+}

@@ -1,0 +1,7 @@
+{"namespace": "com.waitingforcode", "type": "record", "name": "Club",
+    "fields": [
+        {"name": "full_name", "type": "string"},
+        {"name": "foundation_year", "type": "int"},
+        {"name": "disappearance_year", "type": ["int", "null"]}
+    ]
+}
