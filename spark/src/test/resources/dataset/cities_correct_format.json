@@ -1,0 +1,8 @@
+{
+  "cities": [
+    {"name": "Paris", "country": "FR"},
+    {"name": "Warsaw", "country": "PL"},
+    {"name": "Rome", "country": "IT"},
+    {"name": "Buenos Aires", "country": "AR"}
+  ]
+}

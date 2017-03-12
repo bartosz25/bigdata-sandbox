@@ -10,6 +10,7 @@
         <module>kafka</module>
         <module>zookeeper</module>
         <module>cassandra</module>
+        <module>spark</module> 
     </modules>
     <name>sandbox</name>
   <url>http://maven.apache.org</url>
@@ -33,13 +34,13 @@
             <dependency>
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka_2.10</artifactId>
-                <version>0.10.0.0</version>
+                <version>0.9.0.1</version>
             </dependency>
             <!-- contains Apache Kafka new clients - in 0.9.0 clients from 0.8.0 were still supported -->
             <dependency>
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka-clients</artifactId>
-                <version>0.10.0.0</version>
+                <version>0.9.0.1</version>
             </dependency>
             <!-- ZooKeeper -->
             <dependency>
@@ -63,23 +64,27 @@
                 <artifactId>cassandra-all</artifactId>
                 <version>3.0.0</version>
             </dependency>
-            <!-- Jackson -->
+            <!-- Spark -->
             <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-core</artifactId>
-                <version>2.7.4</version>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-core_2.11</artifactId>
+                <version>2.1.0</version>
             </dependency>
             <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>2.7.4</version>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-streaming_2.11</artifactId>
+                <version>2.1.0</version>
             </dependency>
-
-
-
-
-
-
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-mllib_2.11</artifactId>
+                <version>2.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-sql_2.11</artifactId>
+                <version>2.1.0</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>
