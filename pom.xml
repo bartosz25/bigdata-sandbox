@@ -10,7 +10,9 @@
         <module>kafka</module>
         <module>zookeeper</module>
         <module>cassandra</module>
-        <module>spark</module> 
+        <module>spark</module>
+        <module>hdfs</module>
+        <!--<module>neo4j</module>-->
     </modules>
     <name>sandbox</name>
   <url>http://maven.apache.org</url>
