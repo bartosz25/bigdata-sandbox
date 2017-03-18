@@ -47,7 +47,7 @@ public class CheckpointTest {
     public void should_create_stream_with_data_checkpoint_enabled() throws IOException, InterruptedException {
         streamingContext.checkpoint(DATA_CHECKPOINT_DIR);
 
-        JavaDStream<String> temporarySparkFilesDStream = streamingContext.textFileStream("./resources/files/numbers.txt");
+        JavaDStream<String> temporarySparkFilesDStream = streamingContext.textFileStream("./resources/files/");
         temporarySparkFilesDStream.foreachRDD(rdd -> {});
 
         streamingContext.start();
@@ -67,7 +67,7 @@ public class CheckpointTest {
     public void should_fail_on_trying_to_restore_context_from_not_existent_checkpoint() throws IOException, InterruptedException {
         streamingContext.checkpoint(DATA_CHECKPOINT_DIR);
 
-        JavaDStream<String> temporarySparkFilesDStream = streamingContext.textFileStream("./resources/files/numbers.txt");
+        JavaDStream<String> temporarySparkFilesDStream = streamingContext.textFileStream("./resources/files/");
         temporarySparkFilesDStream.foreachRDD(rdd -> {});
 
         streamingContext.start();
@@ -90,7 +90,7 @@ public class CheckpointTest {
         FileUtils.cleanDirectory(new File(aheadLogsDirectory));
         streamingContext.checkpoint(DATA_CHECKPOINT_DIR);
 
-        JavaDStream<String> temporarySparkFilesDStream = streamingContext.textFileStream("./resources/files/numbers.txt");
+        JavaDStream<String> temporarySparkFilesDStream = streamingContext.textFileStream("./resources/files/");
         temporarySparkFilesDStream.foreachRDD(rdd -> {});
 
         streamingContext.start();
