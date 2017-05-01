@@ -1,10 +1,14 @@
 package com.waitingforcode.streaming;
 
+import com.waitingforcode.streaming.dstream.DStreamTest;
 import org.apache.commons.io.FileUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.storage.StorageLevel;
+import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.junit.Before;
 import org.junit.Test;
@@ -43,7 +47,7 @@ public class CheckpointDStreamInitializationTest {
                 JavaStreamingContext.getOrCreate(DATA_CHECKPOINT_DIR, () -> createStreamingContext());
         try {
             JavaDStream<String> temporarySparkFilesDStream =
-                    streamingContext.textFileStream("./resources/files/numbers.txt");
+                    streamingContext.textFileStream("./resources/files/");
             // This method fails when the context is read from checkpoint and
             // DStream is created apart
             temporarySparkFilesDStream.foreachRDD(rdd -> {});
@@ -72,6 +76,7 @@ public class CheckpointDStreamInitializationTest {
     public void should_correctly_create_context_when_dstream_is_set_inside_context_creation_method()
             throws InterruptedException {
         executeWithCorrectDStreamDefinition();
+        Thread.sleep(1_000L);
         executeWithCorrectDStreamDefinition();
     }
 
@@ -92,9 +97,12 @@ public class CheckpointDStreamInitializationTest {
                 new JavaStreamingContext(batchContext, Durations.milliseconds(BATCH_INTERVAL));
         streamingContext.checkpoint(DATA_CHECKPOINT_DIR);
         // Unlike other creation method, this one initializes DStream processing
-        JavaDStream<String> temporarySparkFilesDStream =
-                streamingContext.textFileStream("./resources/files/numbers.txt");
-        temporarySparkFilesDStream.foreachRDD(rdd -> {});
+        JavaReceiverInputDStream<String> receiverInputDStream =
+                streamingContext.receiverStream(new DStreamTest.AutoDataMakingReceiver(StorageLevel.MEMORY_ONLY(), 500L, 2));
+        receiverInputDStream.checkpoint(new     Duration(500L));
+        receiverInputDStream.foreachRDD(rdd -> {
+            System.out.println("Reading "+rdd.collect());
+        });
         return streamingContext;
     }
 
