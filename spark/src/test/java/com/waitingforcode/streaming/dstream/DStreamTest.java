@@ -212,7 +212,7 @@ public class DStreamTest {
                 new Tuple2<>(makeTestLabel(2), 2), new Tuple2<>(makeTestLabel(3), 3));
     }
 
-    private static class AutoDataMakingReceiver extends Receiver<String> {
+    public static class AutoDataMakingReceiver extends Receiver<String> {
 
         private long sleepingTime;
         private int turns;
