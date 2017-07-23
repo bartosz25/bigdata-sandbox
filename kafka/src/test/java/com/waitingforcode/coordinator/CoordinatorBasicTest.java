@@ -23,11 +23,7 @@ public class CoordinatorBasicTest {
     private static final String TOPIC_NAME = "basictopictest";
 
     @Test
-    public void should_correctly_detect_coordinator_work() throws IOException, InterruptedException {
-        System.out.println("[i] Before run, please try topic with below command:");
-        System.out.println("bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic basictopictest");
-        Thread.sleep(10_000);
-
+    public void should_correctly_detect_coordinator_work() throws IOException {
         TestAppender testAppender = new TestAppender();
         String PATTERN = "%m";
         testAppender.setLayout(new PatternLayout(PATTERN));
@@ -43,40 +39,29 @@ public class CoordinatorBasicTest {
         localConsumer.subscribe(Collections.singletonList(TOPIC_NAME));
         localConsumer.poll(500);
 
-        assertThat(testAppender.getMessages()).hasSize(5);
+        assertThat(testAppender.getMessages()).hasSize(3);
         /**
          * Expected messages found in logs should be:
-         * 1) Sending coordinator request for group wfc_integration_test to broker localhost:9092 (id: -1 rack: null)
+         * 1) Group metadata response ClientResponse(receivedTimeMs=1463484813276,
+         *    disconnected=false, request=ClientRequest(expectResponse=true,
+         *    callback=org.apache.kafka.clients.consumer.internals.ConsumerNetworkClient$RequestFutureCompletionHandler@7a1ebcd8,
+         *    request=RequestSend(header={api_key=10,api_version=0,correlation_id=2,client_id=c_basictopictesttest1_1463484812981},
+         *    body={group_id=wfc_integration_test}), createdTimeMs=1463484813273, sendTimeMs=1463484813275),
          *
-         * 2) Received group coordinator response ClientResponse(receivedTimeMs=1464517740784,
-         *      disconnected=false, request=ClientRequest(expectResponse=true,
-         *      callback=org.apache.kafka.clients.consumer.internals.ConsumerNetworkClient$RequestFutureCompletionHandler@307f6b8c,
-         *      request=RequestSend(header={api_key=10,api_version=0,correlation_id=0,
-         *      client_id=c_basictopictesttest1_1464517739036}, body={group_id=wfc_integration_test}),
-         *      createdTimeMs=1464517740433, sendTimeMs=1464517740744),
-         *      responseBody={error_code=0,coordinator={node_id=0,host=bartosz-K70ID,port=9092}})
+         *    responseBody={error_code=0,coordinator={node_id=0,host=bartosz,port=9092}}),
          *
-         * 3) Discovered coordinator bartosz-K70ID:9092 (id: 2147483647 rack: null) for group wfc_integration_test.
-         *
-         * 4) Sending JoinGroup ({group_id=wfc_integration_test,session_timeout=30000,
+         * 2) Issuing request (JOIN_GROUP: {group_id=wfc_integration_test,session_timeout=30000,
          *    member_id=,protocol_type=consumer,group_protocols=[{protocol_name=range,
-         *    protocol_metadata=java.nio.HeapByteBuffer[pos=0 lim=26 cap=26]}]})
-         *    to coordinator bartosz-K70ID:9092 (id: 2147483647 rack: null)
+         *    protocol_metadata=java.nio.HeapByteBuffer[pos=0 lim=26 cap=26]}]}) to coordinator 2147483647
          *
-         * 5) Sending leader SyncGroup for group wfc_integration_test to coordinator
-         *     bartosz-K70ID:9092 (id: 2147483647 rack: null): {
-         *       group_id=wfc_integration_test,generation_id=1,
-         *       member_id=c_basictopictesttest1_1464517739036-e96674a1-515a-42fa-9853-53566cb0e8f4,
-         *       group_assignment=[
-         *         {member_id=c_basictopictesttest1_1464517739036-e96674a1-515a-42fa-9853-53566cb0e8f4,
-         *          member_assignment=java.nio.HeapByteBuffer[pos=0 lim=34 cap=34]
-         *         }
-         *        ]
-         *    }
+         * 3) Issuing leader SyncGroup (SYNC_GROUP: {group_id=wfc_integration_test,generation_id=1,
+         *    member_id=c_basictopictesttest1_1463484812981-eed8d595-396c-4349-9272-c8ffd796c86e,
+         *    group_assignment=[{member_id=c_basictopictesttest1_1463484812981-eed8d595-396c-4349-9272-c8ffd796c86e,
+         *    member_assignment=java.nio.HeapByteBuffer[pos=0 lim=34 cap=34]}]}) to coordinator 2147483647]
          */
         assertMessageMatching(testAppender.getMessages(), "coordinator={node_id=0,");
-        assertMessageMatching(testAppender.getMessages(), "Sending JoinGroup");
-        assertMessageMatching(testAppender.getMessages(), "Sending leader SyncGroup");
+        assertMessageMatching(testAppender.getMessages(), "Issuing request (JOIN_GROUP");
+        assertMessageMatching(testAppender.getMessages(), "Issuing leader SyncGroup");
     }
 
     private void assertMessageMatching(List<String> messages, String pattern) {

@@ -24,7 +24,7 @@ import static org.assertj.core.api.Fail.fail;
 
 public class ZooKeeperInKafkaTest {
 
-    private static final String TOPIC_NAME = "zktopic";
+    private static final String TOPIC_NAME = "topic_to_remove";
 
     private static final ZooKeeper ZK_INSTANCE;
     static {
@@ -56,7 +56,7 @@ public class ZooKeeperInKafkaTest {
 
         ObjectMapper mapper = new ObjectMapper();
         /**
-         * This query gets the information about topic called 'zktopic'. Among stored informations we
+         * This query gets the information about topic called 'topic_to_remove'. Among stored informations we
          * should retrieve:
          * - topic version - version of given topic (increased for example when new partition is added)
          * - partitions assigned - specified in '--partitions' parameter in creation command
@@ -74,6 +74,8 @@ public class ZooKeeperInKafkaTest {
         /**
          * Now, let's inspect some partition information. It contains more details than topic one because
          * it's more concerned about reads and writes.
+         * - controller_epoch - TODO : expliquer, normalement est increméneté à chaque démarrage, mais voir ce que cela veut dire précisement
+         *
          *
          * {"controller_epoch":1,"leader":0,"version":1,"leader_epoch":0,"isr":[0]}
          */
@@ -174,9 +176,7 @@ public class ZooKeeperInKafkaTest {
          *              "29":[0],"41":[0],"3":[0],"28":[0]}}
          *
          * This output can change when offsets.topic.num.partitions is modified. It represents the number
-         * of partitions created for the topic storing commit offsets. Each partition contains an array of
-         * integers. These integers represent brokers ids. In our output we can only find 1 broker which id
-         * is equal to 0.
+         * of partitions created for the topic storing commit offsets.
          */
         ObjectMapper mapper = new ObjectMapper();
         String consumer1Info = new String(ZK_INSTANCE.getData("/brokers/topics/__consumer_offsets", false, new Stat()));
@@ -249,7 +249,7 @@ public class ZooKeeperInKafkaTest {
 
     /**
      * Scala consumer held in ZooKeeper:
-     * bin/kafka-console-consumer.sh --zookeeper localhost:2181 --from-beginning --topic zktopic
+     * bin/kafka-console-consumer.sh --zookeeper localhost:2181 --from-beginning --topic topic_to_remove
      *
      * Java consumer doesn't - why so ?
      */

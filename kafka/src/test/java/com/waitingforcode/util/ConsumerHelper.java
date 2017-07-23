@@ -13,7 +13,6 @@ public final class ConsumerHelper {
     }
 
     public static Properties decoratePropertiesWithDefaults(Properties properties, boolean autoCommit, Integer autoCommitInterval) {
-        properties.setProperty("group.id", "wfc_integration_test");
         properties.setProperty("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.setProperty("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.setProperty("enable.auto.commit", ""+autoCommit);

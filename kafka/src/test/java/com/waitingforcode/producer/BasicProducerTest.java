@@ -13,7 +13,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.errors.RecordTooLargeException;
-import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -32,19 +31,17 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import static org.assertj.core.api.Fail.fail;
 import static org.assertj.core.api.Java6Assertions.assertThat;
 
 public class BasicProducerTest {
 
     private static final String TOPIC_NAME = "basicproducer";
 
-    private boolean replicated = true;
-
     @Test
-    public void should_correctly_send_message() throws IOException, InterruptedException {
-        printAdvice(!replicated);
-        Thread.sleep(10_000);
+    public void should_correctly_send_message() throws IOException {
         String testName = "test1_";
         Properties producerProps = Context.getInstance().getCommonProperties();
         producerProps.setProperty("client.id", ProducerHelper.generateName(TOPIC_NAME, testName));
@@ -59,45 +56,6 @@ public class BasicProducerTest {
 
             KafkaConsumer<String, String> consumer = getConsumer(testName);
             consumer.subscribe(Collections.singletonList(TOPIC_NAME));
-            ConsumerRecords<String, String> records = consumer.poll(15_000);
-
-            assertThat(records.count()).isEqualTo(2);
-            assertThat(records).extracting("key").containsOnly(key1, key2);
-            assertThat(records).extracting("value").contains(value1, value2);
-        } finally {
-            localProducer.close();
-        }
-    }
-
-    @Test
-    public void should__flush_message_immediately_without_explicit_flush_call() throws IOException, InterruptedException {
-        printAdvice(!replicated);
-        Thread.sleep(10_000);
-        String testName = "test2_";
-        Properties producerProps = Context.getInstance().getCommonProperties();
-        producerProps.setProperty("client.id", ProducerHelper.generateName(TOPIC_NAME, testName));
-        // max.request.size	 corresponds approximately to the total size of both sent messages
-        // In fact, their real size is 16384 and since they're bigger than the configured limit
-        // You should be able to see that in the logs:
-        // TRACE Sending record ProducerRecord(topic=basicproducer, partition=null, key=11464525973455, value=A1464525973455,
-        //       timestamp=null) with callback null to topic basicproducer partition 0
-        // TRACE Allocating a new 16384 byte message buffer for topic basicproducer partition 0
-        // TRACE Waking up the sender since topic basicproducer partition 0 is either full or getting a new batch
-        // TRACE Sending record ProducerRecord(topic=basicproducer, partition=null, key=21464525973455,
-        //       value=B1464525973456, timestamp=null) with callback null to topic basicproducer partition 0
-
-        producerProps.setProperty("max.request.size", "15384");
-        KafkaProducer<String, String> localProducer =
-                new KafkaProducer<>(ProducerHelper.decorateWithDefaults(producerProps));
-        try {
-            String key1 = "1" + System.currentTimeMillis(), key2 = "2" + System.currentTimeMillis();
-            String value1 = "A" + System.currentTimeMillis(), value2 = "B" + System.currentTimeMillis();
-            localProducer.send(new ProducerRecord<>(TOPIC_NAME, key1, value1));
-            localProducer.send(new ProducerRecord<>(TOPIC_NAME, key2, value2));
-            Thread.sleep(2000);
-
-            KafkaConsumer<String, String> consumer = getConsumer(testName);
-            consumer.subscribe(Collections.singletonList(TOPIC_NAME));
             ConsumerRecords<String, String> records = consumer.poll(5_000);
 
             assertThat(records.count()).isEqualTo(2);
@@ -109,8 +67,39 @@ public class BasicProducerTest {
     }
 
     @Test
+    public void should__flush_message_immediately_without_explicit_flush_call() throws IOException, InterruptedException {
+        String testName = "test2_";
+        Properties producerProps = Context.getInstance().getCommonProperties();
+        producerProps.setProperty("client.id", ProducerHelper.generateName(TOPIC_NAME, testName));
+        // set small time before automatic flush
+        // By doing so we can try to consume messages within the sleep() of this time
+        producerProps.setProperty("max.request.size", "1");
+        KafkaProducer<String, String> localProducer =
+                new KafkaProducer<>(ProducerHelper.decorateWithDefaults(producerProps));
+        try {
+            String key1 = "1" + System.currentTimeMillis(), key2 = "2" + System.currentTimeMillis();
+            String value1 = "A" + System.currentTimeMillis(), value2 = "B" + System.currentTimeMillis();
+            localProducer.send(new ProducerRecord<>(TOPIC_NAME, key1, value1));
+            localProducer.send(new ProducerRecord<>(TOPIC_NAME, key2, value2));
+            //Thread.sleep(2000);
+
+            KafkaConsumer<String, String> consumer = getConsumer(testName);
+            consumer.subscribe(Collections.singletonList(TOPIC_NAME));
+            ConsumerRecords<String, String> records = consumer.poll(5_000);
+
+            fail("FAILING TEST - FIX OR REMOVE");
+
+            assertThat(records.count()).isEqualTo(2);
+            assertThat(records).extracting("key").containsOnly(key1, key2);
+            assertThat(records).extracting("value").contains(value1, value2);
+        } finally {
+            localProducer.close();
+        }
+    }
+
+    @Test
     public void should_correctly_get_information_about_flushed_messages_from_callback() throws IOException, InterruptedException {
-        printAdvice(replicated);
+        printAdvice();
         Thread.sleep(10_000);
         String testName = "test3_";
         Properties producerProps = Context.getInstance().getCommonProperties();
@@ -137,7 +126,7 @@ public class BasicProducerTest {
 
     @Test
     public void should_correctly_produce_message_to_second_partition() throws IOException, InterruptedException {
-        printAdvice(replicated);
+        printAdvice();
         Thread.sleep(10_000);
         String testName = "test4_";
         Properties producerProps = Context.getInstance().getCommonProperties();
@@ -174,34 +163,34 @@ public class BasicProducerTest {
     }
 
     @Test
-    public void should_not_fail_when_messages_was_not_replicated_enough() throws InterruptedException, IOException {
-        printAdvice(replicated);
-        System.out.println("Now, turn down one broker to see if the message will be delivered");
+    public void should_fail_when_messages_was_not_replicated_enough() throws InterruptedException, IOException {
+        printAdvice();
         Thread.sleep(10_000);
         String testName = "test5_";
         Properties producerProps = Context.getInstance().getCommonProperties();
         producerProps.setProperty("client.id", ProducerHelper.generateName(TOPIC_NAME, testName));
-        // Even if 'all' level is expected, in-sync replicas will contain only alive broker
-        // and it will expects only its ack
-        // Broker previously turned down will catch up missing messages after rstart
         producerProps.setProperty("acks", "all");
+        //producerProps.setProperty("timeout.ms", "30000");
 
         KafkaProducer<String, String> localProducer =
                 new KafkaProducer<>(ProducerHelper.decorateWithDefaults(producerProps));
 
         localProducer.send(new ProducerRecord<>(TOPIC_NAME, "test5_key", "test5_value"));
+        System.out.println("Now, turn down one broker to see if the message will be delivered");
+        Thread.sleep(10_000);
         localProducer.flush();
 
         KafkaConsumer<String, String> consumer = getConsumer(testName);
         consumer.subscribe(Collections.singletonList(TOPIC_NAME));
         ConsumerRecords<String, String> records = consumer.poll(5_000);
 
-        assertThat(records.count()).isEqualTo(1);
+        assertThat(records.count()).isEqualTo(0);
+        fail("This test doesn't work either !");
     }
 
     @Test
-    public void should_correctly_send_message_taking_care_of_delivery() throws IOException, InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
-        printAdvice(replicated);
+    public void should_correctly_send_message_taking_care_of_delivery() throws IOException, InterruptedException, TimeoutException, ExecutionException {
+        printAdvice();
         Thread.sleep(10_000);
         String testName = "test6_";
         Properties producerProps = Context.getInstance().getCommonProperties();
@@ -235,43 +224,42 @@ public class BasicProducerTest {
          * bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 2
          *                      --partitions 2 --topic basicproducer --config compression.type=snappy
          * After executing the last command, check if the compression was correctly defined by calling:
-         * bin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic basicproducer
+         * kbin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic basicproducer
          *
          * Expected output is:
          * Topic:basicproducer	PartitionCount:2	ReplicationFactor:2	Configs:compression.type=snappy
          * Topic: basicproducer	Partition: 0	Leader: 0	Replicas: 0,1	Isr: 0,1
          * Topic: basicproducer	Partition: 1	Leader: 1	Replicas: 1,0	Isr: 1,0
-         *
-         * Broker's compression is expected to be gzip.
          */
         System.out.println("Please delete and recreate a topic with snappy compression");
         Thread.sleep(10_000);
+        // TODO : sprobuj wykonac zapytania automatycznie z poziomu Javy
         String testName = "test7_";
         Properties producerProps = Context.getInstance().getCommonProperties();
         producerProps.setProperty("client.id", ProducerHelper.generateName(TOPIC_NAME, testName));
-        producerProps.setProperty("compression.type", "gzip");
+        // TODO : change all properties to constants
+        producerProps.setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
 
         KafkaProducer<String, String> localProducer =
                 new KafkaProducer<>(ProducerHelper.decorateWithDefaults(producerProps));
 
-        localProducer.send(new ProducerRecord<>(TOPIC_NAME, "key_1", "payload_A"));
+        localProducer.send(new ProducerRecord<>(TOPIC_NAME, "1", "A"));
 
         /**
-         * The test shouldn't fail because compression defined at broker level is only the
-         * default compression used on topics not specifying one. In consequence, if take a look
-         * at .log files storing compressed data, we'll see a kind of binary data prefixed with
-         * SNAPPY word, representing the compression format:
-         * SNAPPY^@^@^@^@^A^@^@^@^A^@^@^@+0^@^@^Y^A<90>$#<E1>.
-         * <CE>^A^@^@^@^AT<FC><A9>8^R^@^@^@^Ekey_1^@^@^@     payload_A
+         * We don't need to specify compression type in consumer side - the compression is handled
+         * by broker thanks to configuration entry "compression.type" which default is "producer".
+         * This default value means that compression used by broker will be the same as the
+         * compression used by producer.
          */
+        // TODO : wyjasnic to lepiej po dodaniu wiadomosci na forum
         KafkaConsumer<String, String> consumer = getConsumer(testName);
         try {
             consumer.subscribe(Collections.singletonList(TOPIC_NAME));
             ConsumerRecords<String, String> records = consumer.poll(5_000);
 
             assertThat(records.count()).isEqualTo(1);
-            assertThat(records.records(TOPIC_NAME)).extracting("key").containsOnly("key_1");
-            assertThat(records.records(TOPIC_NAME)).extracting("value").containsOnly("payload_A");
+            assertThat(records.records(TOPIC_NAME)).extracting("key").containsOnly("1");
+            assertThat(records.records(TOPIC_NAME)).extracting("value").containsOnly("A");
         } finally {
             consumer.close();
             localProducer.close();
@@ -280,8 +268,8 @@ public class BasicProducerTest {
 
     @Test
     public void should_handle_too_big_message_in_listener() throws InterruptedException, IOException, TimeoutException, ExecutionException {
-        printAdvice(replicated);
-        Thread.sleep(10_000);
+        printAdvice();
+        //Thread.sleep(10_000);
         String testName = "test8_";
         Properties producerProps = Context.getInstance().getCommonProperties();
         producerProps.setProperty("client.id", ProducerHelper.generateName(TOPIC_NAME, testName));
@@ -309,20 +297,39 @@ public class BasicProducerTest {
         assertThat(records.count()).isEqualTo(0);
         assertThat(exceptions).hasSize(1);
         assertThat(exceptions.get(0).getMessage())
-                .contains("The message is 37 bytes when serialized which is larger than the total memory " +
-                        "buffer you have configured with the buffer.memory configuration");
+                .contains("The message is 29 bytes when serialized which is larger than the total memory buffer you have configured");
+    }
+
+    @Test
+    public void should_not_throw_exception_when_message_is_too_big() throws IOException {
+        // The scenario is exactly the same as in the previous test. The only difference is that
+        // we allow sent message to fail silently
+        printAdvice();
+        //Thread.sleep(10_000);
+        String testName = "test9_";
+        Properties producerProps = Context.getInstance().getCommonProperties();
+        producerProps.setProperty("client.id", ProducerHelper.generateName(TOPIC_NAME, testName));
+        producerProps.setProperty(ProducerConfig.BUFFER_MEMORY_CONFIG, "1");
+
+        KafkaProducer<String, String> localProducer =
+                new KafkaProducer<>(ProducerHelper.decorateWithDefaults(producerProps));
+        localProducer.send(new ProducerRecord<>(TOPIC_NAME, "1", "BB"));
+
+        KafkaConsumer<String, String> consumer = getConsumer(testName);
+        consumer.subscribe(Collections.singletonList(TOPIC_NAME));
+        ConsumerRecords<String, String> records = consumer.poll(5_000);
+
+        assertThat(records.count()).isEqualTo(0);
     }
 
     @Test
     public void should_correctly_listen_to_message_flush_when_batch_is_full() throws IOException, InterruptedException {
-        printAdvice(!replicated);
+        printAdvice();
         Thread.sleep(10_000);
-        String testName = "test9_";
+        String testName = "test10_";
         Properties producerProps = Context.getInstance().getCommonProperties();
         producerProps.setProperty("client.id", ProducerHelper.generateName(TOPIC_NAME, testName));
-        // For Kafka 0.9.1, the size of each message was 29. Since 0.10.0, because of timestamp add,
-        // this value is now 37 bytes
-        producerProps.setProperty("batch.size", 37 * 3 + "");
+        producerProps.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, 29*3+"");
 
         TestAppender testAppender = new TestAppender(); //create appender
         String PATTERN = "%m";
@@ -333,10 +340,10 @@ public class BasicProducerTest {
 
         KafkaProducer<String, String> localProducer =
                 new KafkaProducer<>(ProducerHelper.decorateWithDefaults(producerProps));
-        localProducer.send(new ProducerRecord<>(TOPIC_NAME, "1", "AA")); // 37 bytes
+        localProducer.send(new ProducerRecord<>(TOPIC_NAME, "1", "AA")); // 29 bytes
         localProducer.send(new ProducerRecord<>(TOPIC_NAME, "2", "BB"));
         localProducer.send(new ProducerRecord<>(TOPIC_NAME, "3", "CC"));
-        Thread.sleep(2000);
+
         /**
          * Messages are sent through special sender Thread. It's awaken every time when:
          * - batch is full
@@ -356,26 +363,24 @@ public class BasicProducerTest {
 
     @Test
     public void should_not_block_when_broker_goes_down_after_reaching_request_timeout_value() throws InterruptedException, IOException {
-        printAdvice(!replicated);
+        printAdvice();
         SleepingDummyPartitioner.overrideSleepingTime(30_000L);
         Thread.sleep(10_000);
-        String testName = "test10_";
+        String testName = "test11_";
         Properties producerProps = Context.getInstance().getCommonProperties();
         producerProps.setProperty("client.id", ProducerHelper.generateName(TOPIC_NAME, testName));
         producerProps.setProperty("retries", "5");
         producerProps.setProperty("partitioner.class", SleepingDummyPartitioner.class.getCanonicalName());
         // This property determines how long main thread will wait for requests processing
         // It can be useful in our situation when broker goes down after successful connection
-        producerProps.setProperty("request.timeout.ms", "3000");
+        producerProps.setProperty(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "3000");
 
         KafkaProducer<String, String> localProducer =
                 new KafkaProducer<>(ProducerHelper.decorateWithDefaults(producerProps));
 
         System.out.println("Now, turn down one broker to see if the message will be delivered");
-
-        // Callback is not expected to be called because the connection
-        // was lost and the main worry of client was to reconnect and not
-        // to resend the message
+        // Callback is not expected to be called
+        // TODO : see that in source code
         List<TimeoutException> exceptions = new ArrayList<>();
         localProducer.send(new ProducerRecord<>(TOPIC_NAME, "1", "A"),
                 (metadata, exception) -> {
@@ -385,28 +390,20 @@ public class BasicProducerTest {
         localProducer.flush();
 
         // 3 seconds should elapse
-        assertThat((System.currentTimeMillis() - startTime) / 1000).isEqualTo(3);
-        // Logs are expected to be printed only once:
-        // TRACE Produced messages to topic-partition basicproducer-0 with base offset offset -1 and error: {}.
-        //       (org.apache.kafka.clients.producer.internals.RecordBatch:92)
-        // TRACE org.apache.kafka.common.errors.TimeoutException: Batch containing 1 record(s) expired due to timeout while
-        //       requesting metadata from brokers for basicproducer-0
-        // TRACE Expired 1 batches in accumulator (org.apache.kafka.clients.producer.internals.RecordAccumulator:249)
-
-        assertThat(exceptions).hasSize(1);
+        assertThat((System.currentTimeMillis()-startTime)/1000).isEqualTo(3);
+        Thread.sleep(2_000);
+        assertThat(exceptions).isEmpty();
     }
 
     private static final class TestAppender extends ConsoleAppender {
 
-        private static final String EXPECTED_BATCH_MSG_1 =
-                "Waking up the sender since topic basicproducer partition ";
-        private static final String EXPECTED_BATCH_MSG_2 = "is either full or getting a new batch";
+        private static final String EXPECTED_BATCH_MSG =
+                "Waking up the sender since topic basicproducer partition 0 is either full or getting a new batch";
         private int messagesCounter = 0;
 
         @Override
         public void append(LoggingEvent event) {
-            if (event.getRenderedMessage().contains(EXPECTED_BATCH_MSG_1) &&
-                    event.getRenderedMessage().contains(EXPECTED_BATCH_MSG_2)) {
+            if (event.getRenderedMessage().contains(EXPECTED_BATCH_MSG)) {
                 messagesCounter++;
             }
         }
@@ -414,6 +411,11 @@ public class BasicProducerTest {
         public int getMessagesCounter() {
             return messagesCounter;
         }
+    }
+
+    @Test
+    public void should_see_new_partition_available() {
+        // TODO : test bedzie dotyczyl zapytania metadata -> metadata.max.age.ms
     }
 
     private void handleSentMessageMetadata(RecordMetadata metadata, Map<String, String> statsHolder, CountDownLatch latch) {
@@ -431,14 +433,10 @@ public class BasicProducerTest {
     }
 
 
-    private void printAdvice(boolean replicated) {
+    private void printAdvice() {
         System.out.println("Before launching this test, think about recreate a topic: ");
         System.out.println("bin/kafka-topics.sh --delete --zookeeper localhost:2181  --topic basicproducer");
-        if (replicated) {
-            System.out.println("bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 2 --partitions 2 --topic basicproducer");
-        } else {
-            System.out.println("bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic basicproducer");
-        }
+        System.out.println("bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 2 --partitions 2 --topic basicproducer");
     }
 
 

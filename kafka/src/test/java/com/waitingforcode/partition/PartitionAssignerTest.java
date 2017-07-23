@@ -36,7 +36,7 @@ public class PartitionAssignerTest {
     @Test
     public void should_correctly_assign_partitions_to_consumer_on_range_fashion() throws IOException, InterruptedException {
         String testName = "test1_";
-        printAlert();
+        //printAlert();
 
         Properties producerProps = Context.getInstance().getCommonProperties();
         producerProps.setProperty("client.id", ProducerHelper.generateName(testName+"_producer", testName));
@@ -89,7 +89,7 @@ public class PartitionAssignerTest {
     @Test
     public void should_correctly_assign_partitions_to_consumer_on_round_roubin_fashion() throws IOException, InterruptedException {
         String testName = "test2_";
-        printAlert();
+        //printAlert();
 
         Properties producerProps = Context.getInstance().getCommonProperties();
         producerProps.setProperty("client.id", ProducerHelper.generateName(testName+"_producer", testName));

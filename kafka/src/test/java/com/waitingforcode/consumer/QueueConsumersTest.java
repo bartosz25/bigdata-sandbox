@@ -106,8 +106,8 @@ public class QueueConsumersTest {
         }
 
         // TopicPartition[2] because we suppose that the rebalancing wasn't made
-        consumer1.seekToBeginning(consumer1.assignment());
-        consumer2.seekToBeginning(consumer2.assignment());
+        consumer1.seekToBeginning(consumer1.assignment().toArray(new TopicPartition[2]));
+        consumer2.seekToBeginning(consumer2.assignment().toArray(new TopicPartition[2]));
 
         // Now, produce some messages
         produceMessages(test);
@@ -227,7 +227,7 @@ public class QueueConsumersTest {
             while (!assigned[0]) {
                 // do nothing
             }
-            consumer.seekToBeginning(consumer.assignment());
+            consumer.seekToBeginning(consumer.assignment().iterator().next());
             latch.countDown();
         }
     }
