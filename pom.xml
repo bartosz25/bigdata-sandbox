@@ -12,6 +12,7 @@
         <module>cassandra</module>
         <module>spark</module>
         <module>hdfs</module>
+        <module>parquet</module>
         <!--<module>neo4j</module>-->
     </modules>
     <name>sandbox</name>
